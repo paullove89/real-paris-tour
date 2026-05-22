@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" role="img" aria-label="Guide photo placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1200" fill="url(#bg)"/>
+  <circle cx="450" cy="420" r="130" fill="#0c4a6e" opacity="0.8"/>
+  <rect x="280" y="580" width="340" height="300" rx="34" fill="#0c4a6e" opacity="0.8"/>
+  <text x="50%" y="960" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#0c4a6e">
+    Guide Photo
+  </text>
+</svg>

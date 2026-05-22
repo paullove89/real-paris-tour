@@ -1,0 +1,12 @@
+- [x] Verify that the `copilot-instructions.md` file in the `.github` directory is created.
+- [x] Clarify Project Requirements (Next.js, TypeScript, App Router, Tailwind, tours sales website).
+- [x] Scaffold the Project (manual scaffold completed in `.` due folder naming constraints with `create-next-app`).
+- [x] Customize the Project (pages, dynamic tour routes, reusable components, sample data, SEO metadata).
+- [x] Install Required Extensions (none specified by `get_project_setup_info`).
+- [x] Compile the Project (`npm run lint` and `npm run build` pass).
+- [x] Create and Run Task (skipped; standard npm scripts are sufficient for this project).
+- [ ] Launch the Project (awaiting your debug mode confirmation).
+- [x] Ensure Documentation is Complete (`README.md` updated and this file cleaned of HTML comments).
+
+- Keep communication concise and focused.
+- Follow development best practices.
