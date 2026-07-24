@@ -3,17 +3,18 @@ import { SafeImage } from "@/components/SafeImage";
 
 export function PhotoGallery() {
   return (
-    <section className="bg-[linear-gradient(180deg,_#edf4ff_0%,_#ffffff_100%)] py-16">
+    <section className="border-y-2 border-zinc-300 bg-[linear-gradient(180deg,_#f3ead3_0%,_#efe5c8_100%)] py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold tracking-tight text-zinc-900">From Our Walks</h2>
+        <p className="font-label text-[11px] uppercase text-zinc-500">Field notes</p>
+        <h2 className="mt-2 text-5xl uppercase leading-none text-zinc-900">From the route</h2>
         <p className="mt-3 max-w-3xl text-zinc-600">
-          Real moments from our routes through Canal de l&apos;Ourcq, parks, and iconic Paris neighborhoods.
+          Real moments from our rides and walks through canal edges, park cut-throughs, and the city streets worth slowing down for.
         </p>
         <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3">
           {walkGallery.map((photo) => (
             <figure
               key={photo.src}
-              className="mb-4 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_10px_24px_rgba(0,85,164,0.16)]"
+              className="mb-4 overflow-hidden rounded-[1.75rem] border-2 border-zinc-300 bg-white/90 shadow-[0_12px_26px_rgba(84,73,34,0.12)]"
             >
               <SafeImage
                 src={photo.src}

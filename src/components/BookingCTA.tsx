@@ -1,21 +1,22 @@
 import Link from "next/link";
-import { getBookingUrl } from "@/data/booking";
+import { getPrimaryBookingUrl } from "@/data/booking";
 
 export function BookingCTA() {
   return (
     <section className="py-16">
-      <div className="mx-auto max-w-4xl rounded-2xl border border-amber-300 bg-[linear-gradient(120deg,_#ef4135_0%,_#0055a4_100%)] px-6 py-10 text-center shadow-[0_14px_30px_rgba(0,85,164,0.24)] sm:px-10">
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Ready to Explore Paris with Us?
+      <div className="mx-auto max-w-4xl rounded-[2rem] border-2 border-zinc-300 bg-[linear-gradient(120deg,_#27482d_0%,_#446640_52%,_#b79cc8_100%)] px-6 py-10 text-center shadow-[0_18px_38px_rgba(36,71,44,0.22)] sm:px-10">
+        <p className="font-label text-[11px] uppercase text-white/70">Book when ready</p>
+        <h2 className="mt-2 text-4xl uppercase leading-none text-white sm:text-5xl">
+          Choose your version of paris
         </h2>
-        <p className="mt-3 text-white/90">
-          Reserve your spot now and receive an instant confirmation with meeting point details.
+        <p className="mt-3 text-lg text-white/90">
+          Reserve a bike ride for the big sights or a walk for the north-east. Instant confirmation, clear meeting details, no fluff.
         </p>
         <Link
-          href={getBookingUrl()}
-          className="mt-6 inline-flex rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#0055a4] transition hover:bg-zinc-100"
+          href={getPrimaryBookingUrl()}
+          className="font-label mt-6 inline-flex rounded-full bg-white px-5 py-3 text-sm uppercase text-zinc-900 transition hover:bg-zinc-100"
         >
-          Start Booking
+          Start booking
         </Link>
       </div>
     </section>

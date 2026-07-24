@@ -20,6 +20,11 @@ const faqs = [
     answer:
       "Yes. Use the contact page and share your dates, interests, and group size for a custom plan.",
   },
+  {
+    question: "Where can I book?",
+    answer:
+      "Direct bookings can go through Bokun, and we can also list tours on Viator and Tripadvisor for travelers who prefer those marketplaces.",
+  },
 ];
 
 export default function FaqPage() {
