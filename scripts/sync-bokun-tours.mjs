@@ -126,12 +126,87 @@ function normalizeSlug(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function toDurationLabel(rawDuration, durationMinutes) {
+function decodeHtmlEntities(value) {
+  return String(value)
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
+function stripHtmlToText(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return decodeHtmlEntities(value)
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sentenceHighlights(value, max = 4) {
+  const text = stripHtmlToText(value);
+  if (!text) {
+    return [];
+  }
+
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 18)
+    .slice(0, max);
+}
+
+function toPreferredSlug(raw, title) {
+  if (typeof raw.slug === "string" && raw.slug.trim()) {
+    return normalizeSlug(raw.slug);
+  }
+
+  if (typeof raw.externalId === "string" && raw.externalId.trim()) {
+    const normalizedExternal = normalizeSlug(raw.externalId);
+    if (normalizedExternal && !/^\d+$/.test(normalizedExternal)) {
+      return normalizedExternal;
+    }
+  }
+
+  const normalizedTitle = normalizeSlug(title);
+  if (/bike|cycling/.test(normalizedTitle) && /paris/.test(normalizedTitle)) {
+    return "bike-highlights-paris";
+  }
+
+  if (/real-paris-tour/.test(normalizedTitle)) {
+    return "the-real-paris-tour";
+  }
+
+  if (normalizedTitle && !/^\d+$/.test(normalizedTitle)) {
+    return normalizedTitle;
+  }
+
+  return normalizeSlug(`tour-${raw.id || title}`);
+}
+
+function toDurationLabel(rawDuration, durationMinutes, durationHours, durationDays, durationWeeks, durationText) {
+  if (typeof durationText === "string" && durationText.trim()) {
+    return durationText.trim();
+  }
+
   if (typeof rawDuration === "string" && rawDuration.trim()) {
     return rawDuration.trim();
   }
 
-  const minutes = Number(durationMinutes);
+  const durationFromParts =
+    Number(durationMinutes || 0) +
+    Number(durationHours || 0) * 60 +
+    Number(durationDays || 0) * 24 * 60 +
+    Number(durationWeeks || 0) * 7 * 24 * 60;
+
+  const minutes = Number(durationFromParts);
   if (!Number.isFinite(minutes) || minutes <= 0) {
     return "TBD";
   }
@@ -184,7 +259,7 @@ function toImageUrls(rawImages) {
       }
 
       if (image && typeof image === "object") {
-        return image.url || image.src || image.imageUrl || image.original;
+        return image.url || image.src || image.imageUrl || image.originalUrl || image.original || image.cleanUrl;
       }
 
       return undefined;
@@ -216,18 +291,26 @@ function mapBokunTour(raw) {
     return null;
   }
 
-  const slugSource = raw.slug || raw.externalId || raw.id || title;
-  const slug = normalizeSlug(slugSource);
+  const slug = toPreferredSlug(raw, title);
   if (!slug) {
     return null;
   }
 
-  const imageUrls = toImageUrls(raw.images || raw.gallery || raw.photos);
+  const imageUrls = toImageUrls(raw.images || raw.gallery || raw.photos || raw.keyPhoto?.derived);
   const coverImage =
-    raw.coverImage || raw.image?.url || raw.imageUrl || raw.mainImage || imageUrls[0] || undefined;
+    raw.coverImage ||
+    raw.image?.url ||
+    raw.imageUrl ||
+    raw.mainImage ||
+    raw.keyPhoto?.originalUrl ||
+    raw.keyPhoto?.url ||
+    imageUrls[0] ||
+    undefined;
 
   const rawPrice =
     raw.priceEur ??
+    raw.nextDefaultPrice ??
+    raw.nextDefaultPriceMoney?.amount ??
     raw.price?.amount ??
     raw.pricing?.fromPrice ??
     raw.fromPrice ??
@@ -236,19 +319,35 @@ function mapBokunTour(raw) {
 
   const priceEur = Number(rawPrice);
 
+  const cleanedDescription = stripHtmlToText(raw.description || raw.shortDescription || raw.summary || raw.excerpt);
   const highlights =
     toHighlights(raw.highlights).length > 0
-      ? toHighlights(raw.highlights)
-      : toHighlights(raw.descriptionHighlights || raw.summary);
+      ? toHighlights(raw.highlights).map(stripHtmlToText).filter(Boolean)
+      : toHighlights(raw.descriptionHighlights).length > 0
+        ? toHighlights(raw.descriptionHighlights).map(stripHtmlToText).filter(Boolean)
+        : sentenceHighlights(raw.excerpt || raw.summary || raw.description);
+
+  const fallbackGroupMax =
+    raw.maxParticipants ||
+    raw.maxPax ||
+    raw.maxPerBooking ||
+    raw.rates?.find?.((rate) => Number.isFinite(Number(rate?.maxPerBooking)))?.maxPerBooking;
 
   return {
     slug,
     title: String(title).trim(),
-    duration: toDurationLabel(raw.duration, raw.durationMinutes || raw.lengthMinutes),
+    duration: toDurationLabel(
+      raw.duration,
+      raw.durationMinutes || raw.lengthMinutes,
+      raw.durationHours,
+      raw.durationDays,
+      raw.durationWeeks,
+      raw.durationText
+    ),
     priceEur: Number.isFinite(priceEur) ? Math.round(priceEur) : 0,
-    groupSize: toGroupLabel(raw.groupSize, raw.maxParticipants || raw.maxPax),
+    groupSize: toGroupLabel(raw.groupSize, fallbackGroupMax),
     neighborhood: String(raw.neighborhood || raw.location?.name || "Paris").trim(),
-    description: String(raw.description || raw.shortDescription || raw.summary || "").trim(),
+    description: cleanedDescription,
     highlights,
     coverImage,
     galleryImages: imageUrls.length > 1 ? imageUrls.slice(1, 5) : undefined,

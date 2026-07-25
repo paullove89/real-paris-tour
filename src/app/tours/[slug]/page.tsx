@@ -33,11 +33,12 @@ export function generateStaticParams() {
 export default async function TourDetailPage({ params }: TourDetailPageProps) {
   const { slug } = await params;
   const tour = getTourBySlug(slug);
-  const showBikeBokunWidget = slug === "bike-highlights-paris";
 
   if (!tour) {
     notFound();
   }
+
+  const showBikeBokunWidget = slug === "bike-highlights-paris" || /bike/i.test(tour.title);
 
   return (
     <section className="py-16">
