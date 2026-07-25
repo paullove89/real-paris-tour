@@ -41,6 +41,82 @@ function addBokunSignatureHeaders(headers, url, method = "GET") {
   headers["x-bokun-signature"] = signature;
 }
 
+function getBokunHeaders(url, method = "GET") {
+  const headers = {
+    accept: "application/json",
+  };
+
+  if (apiToken) {
+    headers.authorization = `Bearer ${apiToken}`;
+  }
+
+  if (apiKey) {
+    headers["x-api-key"] = apiKey;
+  }
+
+  addBokunSignatureHeaders(headers, url, method);
+
+  if (customHeadersJson) {
+    const customHeaders = JSON.parse(customHeadersJson);
+    if (customHeaders && typeof customHeaders === "object") {
+      Object.assign(headers, customHeaders);
+    }
+  }
+
+  return headers;
+}
+
+async function fetchJsonFromUrl(url, method = "GET") {
+  const headers = getBokunHeaders(url, method);
+  const response = await fetch(url, {
+    headers,
+    method,
+    redirect: "manual",
+  });
+
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location") || "(missing location header)";
+    throw new Error(
+      `[bokun-sync] BOKUN_TOURS_API_URL redirected (${response.status}) to ${location}. ` +
+        "Use a direct Bokun JSON API endpoint, not an Extranet/login URL."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(`[bokun-sync] Failed to fetch tours (${response.status} ${response.statusText})`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const bodyText = await response.text();
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const preview = bodyText.slice(0, 140).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `[bokun-sync] Expected JSON but got '${contentType || "unknown"}'. ` +
+        `Response preview: ${preview || "(empty response)"}`
+    );
+  }
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    throw new Error("[bokun-sync] Response was not valid JSON");
+  }
+}
+
+function extractActivityIds(payload) {
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const suppliers = Array.isArray(payload.suppliers) ? payload.suppliers : [];
+  const ids = suppliers.flatMap((supplier) =>
+    Array.isArray(supplier?.activityIds) ? supplier.activityIds : []
+  );
+
+  return [...new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+}
+
 function normalizeSlug(value) {
   return String(value)
     .toLowerCase()
@@ -215,62 +291,20 @@ async function fetchBokunTours() {
     return null;
   }
 
-  const headers = {
-    accept: "application/json",
-  };
+  const payload = await fetchJsonFromUrl(apiUrl);
+  let items = selectItems(payload);
 
-  if (apiToken) {
-    headers.authorization = `Bearer ${apiToken}`;
-  }
-
-  if (apiKey) {
-    headers["x-api-key"] = apiKey;
-  }
-
-  addBokunSignatureHeaders(headers, apiUrl);
-
-  if (customHeadersJson) {
-    const customHeaders = JSON.parse(customHeadersJson);
-    if (customHeaders && typeof customHeaders === "object") {
-      Object.assign(headers, customHeaders);
+  if (items.length === 0) {
+    const ids = extractActivityIds(payload);
+    if (ids.length > 0) {
+      console.log(`[bokun-sync] Retrieved ${ids.length} active activity IDs, fetching full activity data...`);
+      const listByIdUrl = new URL("/activity.json/list-by-id", apiUrl);
+      listByIdUrl.searchParams.set("ids", ids.join(","));
+      const detailsPayload = await fetchJsonFromUrl(listByIdUrl.toString());
+      items = selectItems(detailsPayload);
     }
   }
 
-  const response = await fetch(apiUrl, {
-    headers,
-    redirect: "manual",
-  });
-
-  if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get("location") || "(missing location header)";
-    throw new Error(
-      `[bokun-sync] BOKUN_TOURS_API_URL redirected (${response.status}) to ${location}. ` +
-        "Use a direct Bokun JSON API endpoint, not an Extranet/login URL."
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(`[bokun-sync] Failed to fetch tours (${response.status} ${response.statusText})`);
-  }
-
-  const contentType = response.headers.get("content-type") || "";
-  const bodyText = await response.text();
-
-  if (!contentType.toLowerCase().includes("application/json")) {
-    const preview = bodyText.slice(0, 140).replace(/\s+/g, " ").trim();
-    throw new Error(
-      `[bokun-sync] Expected JSON but got '${contentType || "unknown"}'. ` +
-        `Response preview: ${preview || "(empty response)"}`
-    );
-  }
-
-  let payload;
-  try {
-    payload = JSON.parse(bodyText);
-  } catch {
-    throw new Error("[bokun-sync] Response was not valid JSON");
-  }
-  const items = selectItems(payload);
   const mapped = items.map(mapBokunTour).filter(Boolean);
 
   if (mapped.length === 0) {

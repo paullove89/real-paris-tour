@@ -64,6 +64,14 @@ BOKUN_REQUEST_HEADERS_JSON=
 BOKUN_SYNC_REQUIRED=false
 ```
 
+For Bokun REST v1, a good default is:
+
+```bash
+BOKUN_TOURS_API_URL=https://api.bokun.io/activity.json/active-ids
+```
+
+The sync script will use those IDs to fetch full activity details automatically.
+
 Tour-specific URLs override the generic Bokun URL when present. This is useful if each tour has its own Bokun product page.
 
 Local development does not require Bokun sync variables unless you want live Bokun data during build.
