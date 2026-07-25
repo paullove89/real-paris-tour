@@ -27,6 +27,8 @@ jobs:
       - name: Sync tours from Bokun and build
         env:
           BOKUN_TOURS_API_URL: ${{ secrets.BOKUN_TOURS_API_URL }}
+          BOKUN_ACCESS_KEY: ${{ secrets.BOKUN_ACCESS_KEY }}
+          BOKUN_SECRET_KEY: ${{ secrets.BOKUN_SECRET_KEY }}
           BOKUN_API_TOKEN: ${{ secrets.BOKUN_API_TOKEN }}
           BOKUN_API_KEY: ${{ secrets.BOKUN_API_KEY }}
           BOKUN_REQUEST_HEADERS_JSON: ${{ secrets.BOKUN_REQUEST_HEADERS_JSON }}

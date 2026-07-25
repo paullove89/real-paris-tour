@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,8 +13,33 @@ const overridesPath = path.join(workspaceRoot, "src/data/tour-overrides.json");
 const apiUrl = process.env.BOKUN_TOURS_API_URL;
 const apiToken = process.env.BOKUN_API_TOKEN;
 const apiKey = process.env.BOKUN_API_KEY;
+const bokunAccessKey = process.env.BOKUN_ACCESS_KEY;
+const bokunSecretKey = process.env.BOKUN_SECRET_KEY;
 const customHeadersJson = process.env.BOKUN_REQUEST_HEADERS_JSON;
 const syncRequired = process.env.BOKUN_SYNC_REQUIRED === "true";
+
+function toBokunUtcDate(value = new Date()) {
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${value.getUTCFullYear()}-${pad(value.getUTCMonth() + 1)}-${pad(value.getUTCDate())} ${pad(
+    value.getUTCHours()
+  )}:${pad(value.getUTCMinutes())}:${pad(value.getUTCSeconds())}`;
+}
+
+function addBokunSignatureHeaders(headers, url, method = "GET") {
+  if (!bokunAccessKey || !bokunSecretKey) {
+    return;
+  }
+
+  const parsed = new URL(url);
+  const requestPath = `${parsed.pathname}${parsed.search}`;
+  const bokunDate = toBokunUtcDate();
+  const signaturePayload = `${bokunDate}${bokunAccessKey}${method.toUpperCase()}${requestPath}`;
+  const signature = crypto.createHmac("sha1", bokunSecretKey).update(signaturePayload, "utf8").digest("base64");
+
+  headers["x-bokun-date"] = bokunDate;
+  headers["x-bokun-accesskey"] = bokunAccessKey;
+  headers["x-bokun-signature"] = signature;
+}
 
 function normalizeSlug(value) {
   return String(value)
@@ -201,6 +227,8 @@ async function fetchBokunTours() {
     headers["x-api-key"] = apiKey;
   }
 
+  addBokunSignatureHeaders(headers, apiUrl);
+
   if (customHeadersJson) {
     const customHeaders = JSON.parse(customHeadersJson);
     if (customHeaders && typeof customHeaders === "object") {
@@ -208,13 +236,40 @@ async function fetchBokunTours() {
     }
   }
 
-  const response = await fetch(apiUrl, { headers });
+  const response = await fetch(apiUrl, {
+    headers,
+    redirect: "manual",
+  });
+
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location") || "(missing location header)";
+    throw new Error(
+      `[bokun-sync] BOKUN_TOURS_API_URL redirected (${response.status}) to ${location}. ` +
+        "Use a direct Bokun JSON API endpoint, not an Extranet/login URL."
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`[bokun-sync] Failed to fetch tours (${response.status} ${response.statusText})`);
   }
 
-  const payload = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const bodyText = await response.text();
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const preview = bodyText.slice(0, 140).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `[bokun-sync] Expected JSON but got '${contentType || "unknown"}'. ` +
+        `Response preview: ${preview || "(empty response)"}`
+    );
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(bodyText);
+  } catch {
+    throw new Error("[bokun-sync] Response was not valid JSON");
+  }
   const items = selectItems(payload);
   const mapped = items.map(mapBokunTour).filter(Boolean);
 

@@ -56,6 +56,8 @@ NEXT_PUBLIC_BOKUN_BIKE_HIGHLIGHTS_URL=
 NEXT_PUBLIC_BOKUN_REAL_PARIS_URL=
 
 BOKUN_TOURS_API_URL=
+BOKUN_ACCESS_KEY=
+BOKUN_SECRET_KEY=
 BOKUN_API_TOKEN=
 BOKUN_API_KEY=
 BOKUN_REQUEST_HEADERS_JSON=
@@ -75,5 +77,10 @@ Required GitHub repository secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `BOKUN_TOURS_API_URL`
+- `BOKUN_ACCESS_KEY` and `BOKUN_SECRET_KEY` (recommended for Bokun REST v1 signature auth)
 - `BOKUN_API_TOKEN` and/or `BOKUN_API_KEY` (depending on your Bokun auth method)
 - `BOKUN_REQUEST_HEADERS_JSON` (optional)
+
+For Bokun REST v1 access-key/secret-key auth, use `https://api.bokun.io` URLs and set
+`BOKUN_ACCESS_KEY` + `BOKUN_SECRET_KEY`. The sync script will generate
+`X-Bokun-Date`, `X-Bokun-AccessKey`, and `X-Bokun-Signature` automatically.
