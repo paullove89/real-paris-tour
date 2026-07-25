@@ -7,7 +7,7 @@ export function Hero() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.4fr_0.9fr] lg:px-8 lg:py-20">
         <div>
           <p className="font-label inline-flex rotate-[-2deg] rounded-full border border-zinc-300 bg-white/70 px-3 py-1 text-[11px] uppercase text-zinc-700">
-            alt bike energy, local paris knowledge
+            Not Your First Paris
           </p>
           <h1 className="font-display mt-6 max-w-4xl text-6xl uppercase leading-[0.92] text-zinc-900 sm:text-7xl lg:text-8xl">
             Ride the classics.

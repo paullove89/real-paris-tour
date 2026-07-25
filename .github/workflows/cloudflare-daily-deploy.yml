@@ -1,0 +1,38 @@
+name: Daily Cloudflare Pages Deploy
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync tours from Bokun and build
+        env:
+          BOKUN_TOURS_API_URL: ${{ secrets.BOKUN_TOURS_API_URL }}
+          BOKUN_API_TOKEN: ${{ secrets.BOKUN_API_TOKEN }}
+          BOKUN_API_KEY: ${{ secrets.BOKUN_API_KEY }}
+          BOKUN_REQUEST_HEADERS_JSON: ${{ secrets.BOKUN_REQUEST_HEADERS_JSON }}
+          BOKUN_SYNC_REQUIRED: "true"
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy out --project-name real-paris-tours

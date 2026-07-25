@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev --turbopack",
+    "sync:tours": "node scripts/sync-bokun-tours.mjs",
+    "prebuild": "npm run sync:tours",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

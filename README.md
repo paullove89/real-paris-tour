@@ -26,34 +26,54 @@ npm run build
 npm run start
 ```
 
-## GitHub Pages
+`npm run build` runs a prebuild sync that can pull tour data from Bokun and write `src/data/tours.generated.json`.
 
-The site is configured as a static export for GitHub Pages.
+## Bokun Source Of Truth
 
-1. In your GitHub repository, go to Settings > Pages.
-2. Set the source to GitHub Actions.
-3. Push to the default branch. The workflow in [.github/workflows/deploy.yml](.github/workflows/deploy.yml) will build and publish the exported site.
+Tour slugs, titles, descriptions, pricing, and other listing fields can be synced from Bokun at build time.
 
-## Booking Integrations
+Commands:
 
-The site now supports a provider-aware booking hub. You can surface direct Bokun checkout links as well as Viator and Tripadvisor marketplace links.
+```bash
+npm run sync:tours
+npm run build
+```
+
+The sync writes generated data to `src/data/tours.generated.json`, which is used by `src/data/tours.ts`.
+Optional local tuning (images, highlights, neighborhood labels) can be added by slug in `src/data/tour-overrides.json`.
+
+## Bokun Booking
+
+All bookings are handled through Bokun URLs.
 
 Public environment variables:
 
 ```bash
 NEXT_PUBLIC_BOKUN_BOOKING_URL=https://book.realparis.tours
-NEXT_PUBLIC_VIATOR_BOOKING_URL=
-NEXT_PUBLIC_TRIPADVISOR_BOOKING_URL=
 
 NEXT_PUBLIC_BOKUN_BIKE_HIGHLIGHTS_URL=
-NEXT_PUBLIC_VIATOR_BIKE_HIGHLIGHTS_URL=
-NEXT_PUBLIC_TRIPADVISOR_BIKE_HIGHLIGHTS_URL=
 
 NEXT_PUBLIC_BOKUN_REAL_PARIS_URL=
-NEXT_PUBLIC_VIATOR_REAL_PARIS_URL=
-NEXT_PUBLIC_TRIPADVISOR_REAL_PARIS_URL=
+
+BOKUN_TOURS_API_URL=
+BOKUN_API_TOKEN=
+BOKUN_API_KEY=
+BOKUN_REQUEST_HEADERS_JSON=
+BOKUN_SYNC_REQUIRED=false
 ```
 
-Tour-specific URLs override the generic provider URLs when present. This is useful if each tour has its own Bokun product page or marketplace listing.
+Tour-specific URLs override the generic Bokun URL when present. This is useful if each tour has its own Bokun product page.
 
-Local development does not require booking-specific environment variables unless you want to test the provider links.
+Local development does not require Bokun sync variables unless you want live Bokun data during build.
+
+## Daily Cloudflare Updates
+
+The workflow `/.github/workflows/cloudflare-daily-deploy.yml` is configured to deploy once per day and can also be run manually.
+
+Required GitHub repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `BOKUN_TOURS_API_URL`
+- `BOKUN_API_TOKEN` and/or `BOKUN_API_KEY` (depending on your Bokun auth method)
+- `BOKUN_REQUEST_HEADERS_JSON` (optional)

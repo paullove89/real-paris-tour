@@ -23,7 +23,7 @@ const faqs = [
   {
     question: "Where can I book?",
     answer:
-      "Direct bookings can go through Bokun, and we can also list tours on Viator and Tripadvisor for travelers who prefer those marketplaces.",
+      "All bookings are handled through Bokun.",
   },
 ];
 

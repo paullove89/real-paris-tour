@@ -5,7 +5,7 @@ export function GuideSpotlight() {
         <div className="rounded-[2rem] border-2 border-zinc-300 bg-white/70 p-6 lg:p-8">
           <p className="font-label text-[11px] uppercase text-amber-700">Why we do it differently</p>
           <h2 className="mt-2 max-w-4xl text-5xl uppercase leading-none text-zinc-900">
-            Experienced Paris guides, done with exploitative tour-company models
+            Experienced Paris guides, done WITHOUT exploitative tour-company models
           </h2>
           <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
             <div className="space-y-4 text-lg leading-7 text-zinc-700">
