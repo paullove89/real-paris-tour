@@ -150,6 +150,34 @@ function stripHtmlToText(value) {
     .trim();
 }
 
+function sanitizeDescriptionHtml(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+
+  const withoutDangerous = decodeHtmlEntities(value)
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "");
+
+  const listItems = [...withoutDangerous.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
+    .map((match) => stripHtmlToText(match[1]))
+    .map((text) => text.trim())
+    .filter(Boolean);
+
+  const paragraphs = withoutDangerous
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .split(/\n{2,}/)
+    .map((block) => block.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const paragraphHtml = paragraphs.map((block) => `<p>${block}</p>`).join("\n");
+  const listHtml = listItems.length > 0 ? `<ul>${listItems.map((item) => `<li>${item}</li>`).join("")}</ul>` : "";
+
+  return [paragraphHtml, listHtml].filter(Boolean).join("\n");
+}
+
 function truncateText(value, max = 220) {
   const text = String(value || "").trim();
   if (text.length <= max) {
@@ -249,6 +277,41 @@ function extractListItemsFromHtml(value) {
     .filter((item) => item.length >= 4);
 }
 
+function extractPriceCandidatesFromPriceList(payload) {
+  const candidates = [];
+  const ranges = Array.isArray(payload?.pricesByDateRange) ? payload.pricesByDateRange : [];
+
+  for (const range of ranges) {
+    const rates = Array.isArray(range?.rates) ? range.rates : [];
+    for (const rate of rates) {
+      candidates.push(parseNumericAmount(rate?.price?.amount));
+
+      const passengers = Array.isArray(rate?.passengers) ? rate.passengers : [];
+      for (const passenger of passengers) {
+        candidates.push(parseNumericAmount(passenger?.price?.amount));
+      }
+    }
+  }
+
+  return candidates.filter((value) => Number.isFinite(value) && value > 0);
+}
+
+async function fetchFallbackPriceEur(activityId) {
+  try {
+    const priceListUrl = new URL(`/activity.json/${activityId}/price-list`, apiUrl);
+    priceListUrl.searchParams.set("currency", "EUR");
+    const payload = await fetchJsonFromUrl(priceListUrl.toString());
+    const candidates = extractPriceCandidatesFromPriceList(payload);
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    return Math.round(Math.min(...candidates));
+  } catch {
+    return null;
+  }
+}
+
 function sentenceHighlights(value, max = 4) {
   const text = stripHtmlToText(value);
   if (!text) {
@@ -316,6 +379,33 @@ function toDurationLabel(rawDuration, durationMinutes, durationHours, durationDa
   }
 
   return `${hours.toFixed(1)} hours`;
+}
+
+function durationFromStartTimes(raw) {
+  if (!Array.isArray(raw?.startTimes)) {
+    return null;
+  }
+
+  const withDuration = raw.startTimes.find(
+    (startTime) =>
+      Number(startTime?.durationMinutes) > 0 ||
+      Number(startTime?.durationHours) > 0 ||
+      Number(startTime?.durationDays) > 0 ||
+      Number(startTime?.durationWeeks) > 0
+  );
+
+  if (!withDuration) {
+    return null;
+  }
+
+  return toDurationLabel(
+    withDuration.duration,
+    withDuration.durationMinutes,
+    withDuration.durationHours,
+    withDuration.durationDays,
+    withDuration.durationWeeks,
+    withDuration.durationText
+  );
 }
 
 function toGroupLabel(rawGroup, maxParticipants) {
@@ -410,6 +500,7 @@ function mapBokunTour(raw) {
 
   const rawDescription = raw.description || raw.shortDescription || raw.summary || raw.excerpt;
   const cleanedDescription = stripHtmlToText(rawDescription);
+  const descriptionHtml = sanitizeDescriptionHtml(rawDescription);
   const cleanedSummary = truncateText(stripHtmlToText(raw.excerpt || raw.summary || raw.shortDescription || rawDescription));
 
   const explicitHighlights = toHighlights(raw.highlights).map(stripHtmlToText).filter(Boolean);
@@ -432,20 +523,24 @@ function mapBokunTour(raw) {
     raw.rates?.find?.((rate) => Number.isFinite(Number(rate?.maxPerBooking)))?.maxPerBooking;
 
   return {
+    activityId: Number(raw.id) || null,
     slug,
     title: String(title).trim(),
-    duration: toDurationLabel(
-      raw.duration,
-      raw.durationMinutes || raw.lengthMinutes,
-      raw.durationHours,
-      raw.durationDays,
-      raw.durationWeeks,
-      raw.durationText
-    ),
+    duration:
+      durationFromStartTimes(raw) ||
+      toDurationLabel(
+        raw.duration,
+        raw.durationMinutes || raw.lengthMinutes,
+        raw.durationHours,
+        raw.durationDays,
+        raw.durationWeeks,
+        raw.durationText
+      ),
     priceEur,
     groupSize: toGroupLabel(raw.groupSize, fallbackGroupMax),
     neighborhood: String(raw.neighborhood || raw.location?.name || "Paris").trim(),
     description: cleanedDescription,
+    descriptionHtml,
     summary: cleanedSummary || truncateText(cleanedDescription),
     highlights,
     coverImage,
@@ -505,11 +600,26 @@ async function fetchBokunTours() {
 
   const mapped = items.map(mapBokunTour).filter(Boolean);
 
+  for (const tour of mapped) {
+    if (tour.priceEur > 0 || !tour.activityId) {
+      continue;
+    }
+
+    const fallbackPrice = await fetchFallbackPriceEur(tour.activityId);
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      tour.priceEur = fallbackPrice;
+    }
+  }
+
   if (mapped.length === 0) {
     throw new Error("[bokun-sync] No tours could be mapped from Bokun payload");
   }
 
-  return mapped;
+  return mapped.map((tour) => {
+    const cleaned = { ...tour };
+    delete cleaned.activityId;
+    return cleaned;
+  });
 }
 
 async function main() {

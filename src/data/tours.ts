@@ -8,6 +8,7 @@ export type Tour = {
   groupSize: string;
   neighborhood: string;
   description: string;
+  descriptionHtml?: string;
   summary?: string;
   highlights: string[];
   coverImage?: string;

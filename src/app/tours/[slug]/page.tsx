@@ -45,7 +45,14 @@ export default async function TourDetailPage({ params }: TourDetailPageProps) {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <p className="font-label text-[11px] uppercase text-amber-700">{tour.neighborhood}</p>
         <h1 className="mt-2 text-6xl uppercase leading-none text-zinc-900">{tour.title}</h1>
-        <p className="mt-4 max-w-3xl text-lg leading-7 text-zinc-700">{tour.description}</p>
+        {tour.descriptionHtml ? (
+          <div
+            className="mt-4 max-w-3xl text-lg leading-7 text-zinc-700 [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mb-2"
+            dangerouslySetInnerHTML={{ __html: tour.descriptionHtml }}
+          />
+        ) : (
+          <p className="mt-4 max-w-3xl text-lg leading-7 text-zinc-700">{tour.description}</p>
+        )}
 
         {tour.coverImage ? (
           <SafeImage
