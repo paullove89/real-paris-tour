@@ -150,6 +150,105 @@ function stripHtmlToText(value) {
     .trim();
 }
 
+function truncateText(value, max = 220) {
+  const text = String(value || "").trim();
+  if (text.length <= max) {
+    return text;
+  }
+
+  return `${text.slice(0, max).replace(/\s+\S*$/, "").trim()}...`;
+}
+
+function parseNumericAmount(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return NaN;
+  }
+
+  const cleaned = value
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/,(?=\d{1,2}$)/, ".")
+    .replace(/,/g, "");
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) ? amount : NaN;
+}
+
+function firstFiniteNumber(values) {
+  for (const value of values) {
+    const amount = parseNumericAmount(value);
+    if (Number.isFinite(amount)) {
+      return amount;
+    }
+  }
+
+  return NaN;
+}
+
+function extractPricesFromObject(obj) {
+  if (!obj || typeof obj !== "object") {
+    return [];
+  }
+
+  return Object.values(obj)
+    .map((value) => parseNumericAmount(value))
+    .filter((value) => Number.isFinite(value));
+}
+
+function toPriceEur(raw) {
+  const directCandidates = [
+    raw.priceEur,
+    raw.nextDefaultPrice,
+    raw.nextDefaultPriceMoney?.amount,
+    raw.defaultPrice,
+    raw.price?.amount,
+    raw.price?.value,
+    raw.pricing?.fromPrice,
+    raw.fromPrice,
+    raw.startingPrice,
+    raw.nextDefaultPriceAsText,
+  ];
+
+  const direct = firstFiniteNumber(directCandidates);
+  if (Number.isFinite(direct) && direct > 0) {
+    return Math.round(direct);
+  }
+
+  const categoryPrices = extractPricesFromObject(raw.pricesByCategory);
+  if (categoryPrices.length > 0) {
+    return Math.round(Math.min(...categoryPrices));
+  }
+
+  const ratePrices = Array.isArray(raw.rates)
+    ? raw.rates.flatMap((rate) => [
+        parseNumericAmount(rate?.price),
+        parseNumericAmount(rate?.amount),
+        ...extractPricesFromObject(rate?.pricesByCategory),
+      ])
+    : [];
+
+  const finiteRatePrices = ratePrices.filter((value) => Number.isFinite(value) && value > 0);
+  if (finiteRatePrices.length > 0) {
+    return Math.round(Math.min(...finiteRatePrices));
+  }
+
+  return 0;
+}
+
+function extractListItemsFromHtml(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  const matches = [...value.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)];
+  return matches
+    .map((match) => stripHtmlToText(match[1]))
+    .map((item) => item.replace(/^[-•\s]+/, "").trim())
+    .filter((item) => item.length >= 4);
+}
+
 function sentenceHighlights(value, max = 4) {
   const text = stripHtmlToText(value);
   if (!text) {
@@ -307,25 +406,24 @@ function mapBokunTour(raw) {
     imageUrls[0] ||
     undefined;
 
-  const rawPrice =
-    raw.priceEur ??
-    raw.nextDefaultPrice ??
-    raw.nextDefaultPriceMoney?.amount ??
-    raw.price?.amount ??
-    raw.pricing?.fromPrice ??
-    raw.fromPrice ??
-    raw.startingPrice ??
-    0;
+  const priceEur = toPriceEur(raw);
 
-  const priceEur = Number(rawPrice);
+  const rawDescription = raw.description || raw.shortDescription || raw.summary || raw.excerpt;
+  const cleanedDescription = stripHtmlToText(rawDescription);
+  const cleanedSummary = truncateText(stripHtmlToText(raw.excerpt || raw.summary || raw.shortDescription || rawDescription));
 
-  const cleanedDescription = stripHtmlToText(raw.description || raw.shortDescription || raw.summary || raw.excerpt);
+  const explicitHighlights = toHighlights(raw.highlights).map(stripHtmlToText).filter(Boolean);
+  const descriptionHighlights = toHighlights(raw.descriptionHighlights).map(stripHtmlToText).filter(Boolean);
+  const listHighlights = extractListItemsFromHtml(raw.description || raw.summary || "");
+
   const highlights =
-    toHighlights(raw.highlights).length > 0
-      ? toHighlights(raw.highlights).map(stripHtmlToText).filter(Boolean)
-      : toHighlights(raw.descriptionHighlights).length > 0
-        ? toHighlights(raw.descriptionHighlights).map(stripHtmlToText).filter(Boolean)
-        : sentenceHighlights(raw.excerpt || raw.summary || raw.description);
+    explicitHighlights.length > 0
+      ? explicitHighlights
+      : descriptionHighlights.length > 0
+        ? descriptionHighlights
+        : listHighlights.length > 0
+          ? listHighlights.slice(0, 6)
+          : sentenceHighlights(raw.excerpt || raw.summary || raw.description);
 
   const fallbackGroupMax =
     raw.maxParticipants ||
@@ -344,10 +442,11 @@ function mapBokunTour(raw) {
       raw.durationWeeks,
       raw.durationText
     ),
-    priceEur: Number.isFinite(priceEur) ? Math.round(priceEur) : 0,
+    priceEur,
     groupSize: toGroupLabel(raw.groupSize, fallbackGroupMax),
     neighborhood: String(raw.neighborhood || raw.location?.name || "Paris").trim(),
     description: cleanedDescription,
+    summary: cleanedSummary || truncateText(cleanedDescription),
     highlights,
     coverImage,
     galleryImages: imageUrls.length > 1 ? imageUrls.slice(1, 5) : undefined,

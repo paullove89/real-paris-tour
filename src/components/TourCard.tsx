@@ -7,6 +7,13 @@ type TourCardProps = {
 };
 
 export function TourCard({ tour }: TourCardProps) {
+  const summaryText =
+    typeof tour.summary === "string" && tour.summary.trim().length > 0
+      ? tour.summary.trim()
+      : tour.description.length > 220
+        ? `${tour.description.slice(0, 220).replace(/\s+\S*$/, "").trim()}...`
+        : tour.description;
+
   return (
     <article className="relative flex h-full flex-col rounded-[2rem] border-2 border-zinc-300 bg-[rgba(255,250,239,0.92)] p-5 shadow-[0_12px_30px_rgba(84,73,34,0.12)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(84,73,34,0.18)]">
       {tour.comingSoon && (
@@ -27,7 +34,7 @@ export function TourCard({ tour }: TourCardProps) {
         {tour.neighborhood}
       </p>
       <h3 className="font-display mt-4 text-3xl uppercase leading-none text-zinc-900">{tour.title}</h3>
-      <p className="mt-3 text-base leading-6 text-zinc-700">{tour.description}</p>
+      <p className="mt-3 text-base leading-6 text-zinc-700">{summaryText}</p>
       <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-zinc-700">
         <p className="rounded-2xl border border-zinc-200 bg-white/65 p-3">
           <span className="font-label block text-[10px] uppercase text-zinc-500">Duration</span>
