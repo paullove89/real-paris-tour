@@ -13,7 +13,7 @@ export function BokunWidgetButton({
   buttonId,
   dataSrc,
   loaderSrc,
-  label = "Book now",
+  label = "Find out more",
 }: BokunWidgetButtonProps) {
   return (
     <>

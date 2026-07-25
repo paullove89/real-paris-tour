@@ -204,9 +204,25 @@ function parseNumericAmount(value) {
   return Number.isFinite(amount) ? amount : NaN;
 }
 
+function normalizePriceAmount(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return NaN;
+  }
+
+  // Bokun payloads can sometimes return minor currency units (for example 4500 instead of 45).
+  if (Number.isInteger(value) && value >= 1000) {
+    const scaled = value / 100;
+    if (scaled > 0 && scaled <= 500) {
+      return scaled;
+    }
+  }
+
+  return value;
+}
+
 function firstFiniteNumber(values) {
   for (const value of values) {
-    const amount = parseNumericAmount(value);
+    const amount = normalizePriceAmount(parseNumericAmount(value));
     if (Number.isFinite(amount)) {
       return amount;
     }
@@ -221,8 +237,29 @@ function extractPricesFromObject(obj) {
   }
 
   return Object.values(obj)
-    .map((value) => parseNumericAmount(value))
+    .map((value) => normalizePriceAmount(parseNumericAmount(value)))
     .filter((value) => Number.isFinite(value));
+}
+
+function collectPriceLikeNumbers(value, keyHint = "") {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectPriceLikeNumbers(item, keyHint));
+  }
+
+  if (typeof value !== "object") {
+    if (/(price|amount|value)/i.test(keyHint)) {
+      const numeric = normalizePriceAmount(parseNumericAmount(value));
+      return Number.isFinite(numeric) ? [numeric] : [];
+    }
+
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, nested]) => collectPriceLikeNumbers(nested, key));
 }
 
 function toPriceEur(raw) {
@@ -251,8 +288,8 @@ function toPriceEur(raw) {
 
   const ratePrices = Array.isArray(raw.rates)
     ? raw.rates.flatMap((rate) => [
-        parseNumericAmount(rate?.price),
-        parseNumericAmount(rate?.amount),
+        normalizePriceAmount(parseNumericAmount(rate?.price)),
+        normalizePriceAmount(parseNumericAmount(rate?.amount)),
         ...extractPricesFromObject(rate?.pricesByCategory),
       ])
     : [];
@@ -260,6 +297,12 @@ function toPriceEur(raw) {
   const finiteRatePrices = ratePrices.filter((value) => Number.isFinite(value) && value > 0);
   if (finiteRatePrices.length > 0) {
     return Math.round(Math.min(...finiteRatePrices));
+  }
+
+  const deepPriceCandidates = collectPriceLikeNumbers(raw);
+  const finiteDeepPrices = deepPriceCandidates.filter((value) => Number.isFinite(value) && value > 0);
+  if (finiteDeepPrices.length > 0) {
+    return Math.round(Math.min(...finiteDeepPrices));
   }
 
   return 0;
@@ -284,11 +327,11 @@ function extractPriceCandidatesFromPriceList(payload) {
   for (const range of ranges) {
     const rates = Array.isArray(range?.rates) ? range.rates : [];
     for (const rate of rates) {
-      candidates.push(parseNumericAmount(rate?.price?.amount));
+      candidates.push(normalizePriceAmount(parseNumericAmount(rate?.price?.amount)));
 
       const passengers = Array.isArray(rate?.passengers) ? rate.passengers : [];
       for (const passenger of passengers) {
-        candidates.push(parseNumericAmount(passenger?.price?.amount));
+        candidates.push(normalizePriceAmount(parseNumericAmount(passenger?.price?.amount)));
       }
     }
   }

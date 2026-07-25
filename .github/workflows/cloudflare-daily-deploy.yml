@@ -15,6 +15,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate required deployment secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BOKUN_TOURS_API_URL: ${{ secrets.BOKUN_TOURS_API_URL }}
+          BOKUN_ACCESS_KEY: ${{ secrets.BOKUN_ACCESS_KEY }}
+          BOKUN_SECRET_KEY: ${{ secrets.BOKUN_SECRET_KEY }}
+        run: |
+          missing=0
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID BOKUN_TOURS_API_URL BOKUN_ACCESS_KEY BOKUN_SECRET_KEY; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required GitHub secret: $key"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Required secrets are missing. Update repository secrets and rerun this workflow."
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

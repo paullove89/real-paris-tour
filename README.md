@@ -49,7 +49,7 @@ All bookings are handled through Bokun URLs.
 Public environment variables:
 
 ```bash
-NEXT_PUBLIC_BOKUN_BOOKING_URL=https://book.realparis.tours
+NEXT_PUBLIC_BOKUN_BOOKING_URL=
 
 NEXT_PUBLIC_BOKUN_BIKE_HIGHLIGHTS_URL=
 
@@ -72,7 +72,7 @@ BOKUN_TOURS_API_URL=https://api.bokun.io/activity.json/active-ids
 
 The sync script will use those IDs to fetch full activity details automatically.
 
-Tour-specific URLs override the generic Bokun URL when present. This is useful if each tour has its own Bokun product page.
+Tour-specific URLs override the generic Bokun URL when present. If no Bokun URL is set, the site can route visitors to `/contact` instead.
 
 Local development does not require Bokun sync variables unless you want live Bokun data during build.
 

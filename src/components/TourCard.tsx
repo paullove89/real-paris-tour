@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SafeImage } from "@/components/SafeImage";
-import type { Tour } from "@/data/tours";
+import { formatTourPriceEur, type Tour } from "@/data/tours";
 
 type TourCardProps = {
   tour: Tour;
@@ -42,7 +42,7 @@ export function TourCard({ tour }: TourCardProps) {
         </p>
         <p className="rounded-2xl border border-zinc-200 bg-white/65 p-3">
           <span className="font-label block text-[10px] uppercase text-zinc-500">Price</span>
-          <span className="mt-1 block font-semibold text-zinc-900">€{tour.priceEur}</span>
+          <span className="mt-1 block font-semibold text-zinc-900">{formatTourPriceEur(tour.priceEur)}</span>
         </p>
       </div>
       <p className="font-label mt-4 text-[11px] uppercase text-zinc-600">{tour.groupSize}</p>

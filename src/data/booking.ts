@@ -1,5 +1,3 @@
-const DEFAULT_BOKUN_BOOKING_URL = "https://book.realparis.tours";
-
 const tourBokunEnvMap: Record<string, string> = {
   "bike-highlights-paris": "NEXT_PUBLIC_BOKUN_BIKE_HIGHLIGHTS_URL",
   "the-real-paris-tour": "NEXT_PUBLIC_BOKUN_REAL_PARIS_URL",
@@ -19,5 +17,5 @@ export function getPrimaryBookingUrl(tourSlug?: string) {
     }
   }
 
-  return process.env.NEXT_PUBLIC_BOKUN_BOOKING_URL || DEFAULT_BOKUN_BOOKING_URL;
+  return process.env.NEXT_PUBLIC_BOKUN_BOOKING_URL || "/contact";
 }

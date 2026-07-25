@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { getPrimaryBookingUrl } from "@/data/booking";
+import { formatTourCountLabel, getBokunTourCount } from "@/data/tours";
 
 export function Hero() {
+  const tourCountLabel = formatTourCountLabel(getBokunTourCount());
+
   return (
     <section className="overflow-hidden border-b-2 border-zinc-300 bg-[linear-gradient(145deg,_#f7efdb_0%,_#efe4c4_54%,_#d7c4e0_100%)]">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.4fr_0.9fr] lg:px-8 lg:py-20">
@@ -14,7 +16,7 @@ export function Hero() {
             <span className="block text-[#6a4e7c]">Walk the real paris.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-7 text-zinc-700 sm:text-xl">
-            Two small-group tours, no filler. One by bike for the city&apos;s big hits, one on foot for
+            Small-group tours, no filler. One by bike for the city&apos;s big hits, one on foot for
             the north-east neighborhoods where Paris loosens up.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -25,16 +27,16 @@ export function Hero() {
               See the lineup
             </Link>
             <Link
-              href={getPrimaryBookingUrl()}
+              href="/contact"
               className="font-label inline-flex rounded-full border-2 border-amber-300 bg-white/75 px-5 py-3 text-sm uppercase text-amber-900 transition hover:bg-amber-50"
             >
-              Book a spot
+              Get in touch
             </Link>
           </div>
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
             <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-white/65 p-4">
               <p className="font-label text-[10px] uppercase text-zinc-500">Format</p>
-              <p className="font-display mt-2 text-2xl uppercase text-zinc-900">2 tours only</p>
+              <p className="font-display mt-2 text-2xl uppercase text-zinc-900">{tourCountLabel}</p>
             </div>
             <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-white/65 p-4">
               <p className="font-label text-[10px] uppercase text-zinc-500">Groups</p>

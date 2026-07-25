@@ -3,8 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BokunWidgetButton } from "@/components/BokunWidgetButton";
 import { SafeImage } from "@/components/SafeImage";
-import { getPrimaryBookingUrl } from "@/data/booking";
-import { getTourBySlug, tours } from "@/data/tours";
+import { formatTourPriceEur, getTourBySlug, tours } from "@/data/tours";
 
 type TourDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -70,7 +69,7 @@ export default async function TourDetailPage({ params }: TourDetailPageProps) {
           </p>
           <p className="rounded-2xl border border-zinc-200 bg-white/70 p-3 text-sm text-zinc-700">
             <span className="font-label block text-[10px] uppercase text-zinc-500">Price</span>
-            <span className="mt-1 block font-semibold">€{tour.priceEur}</span>
+            <span className="mt-1 block font-semibold">{formatTourPriceEur(tour.priceEur)}</span>
           </p>
           <p className="rounded-2xl border border-zinc-200 bg-white/70 p-3 text-sm text-zinc-700">
             <span className="font-label block text-[10px] uppercase text-zinc-500">Group</span>
@@ -105,14 +104,14 @@ export default async function TourDetailPage({ params }: TourDetailPageProps) {
               buttonId="bokun_8ad497bb_0fc7_411e_93c7_925c523d4b8c"
               loaderSrc="https://widgets.bokun.io/assets/javascripts/apps/build/BokunWidgetsLoader.js?bookingChannelUUID=342c86a7-f520-4217-b278-8b7f02a00354"
               dataSrc="https://widgets.bokun.io/online-sales/342c86a7-f520-4217-b278-8b7f02a00354/experience/1259056?partialView=1"
-              label="Book now"
+              label="Find out more"
             />
           ) : (
             <Link
-              href={getPrimaryBookingUrl(tour.slug)}
+              href={`/contact?tour=${encodeURIComponent(tour.slug)}`}
               className="font-label inline-flex rounded-full bg-zinc-900 px-5 py-3 text-sm uppercase text-white transition hover:bg-zinc-700"
             >
-              Book this tour
+              Get in touch
             </Link>
           )}
         </div>
