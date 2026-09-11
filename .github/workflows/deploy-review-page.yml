@@ -16,6 +16,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROJECT_NAME: review-paullove
       CUSTOM_DOMAIN: review.paullove.me
+      ROOT_DOMAIN: paullove.me
 
     steps:
       - name: Checkout
@@ -65,21 +66,77 @@ jobs:
         run: |
           set -euo pipefail
           api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains"
-
-          # If it is already attached, leave it alone.
           existing=$(curl -fsS \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             -H "Content-Type: application/json" \
             "$api")
+
           if echo "$existing" | jq -e --arg d "$CUSTOM_DOMAIN" '.result[]? | select(.name == $d)' >/dev/null; then
             echo "${CUSTOM_DOMAIN} is already attached."
-            exit 0
+          else
+            echo "Attaching ${CUSTOM_DOMAIN}..."
+            curl -fsS -X POST "$api" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "{\"name\":\"${CUSTOM_DOMAIN}\"}" \
+              | tee /tmp/domain-create.json
+            jq -e '.success == true' /tmp/domain-create.json >/dev/null
           fi
 
-          echo "Attaching ${CUSTOM_DOMAIN}..."
-          curl -fsS -X POST "$api" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data "{\"name\":\"${CUSTOM_DOMAIN}\"}" \
-            | tee /tmp/domain-create.json
-          jq -e '.success == true' /tmp/domain-create.json >/dev/null
+      - name: Ensure DNS points to Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+
+          zones=$(curl -fsS "${headers[@]}" \
+            "https://api.cloudflare.com/client/v4/zones?name=${ROOT_DOMAIN}&status=active")
+          zone_id=$(echo "$zones" | jq -r '.result[0].id // empty')
+          if [ -z "$zone_id" ]; then
+            echo "Could not find active Cloudflare zone ${ROOT_DOMAIN}."
+            echo "$zones"
+            exit 1
+          fi
+
+          records=$(curl -fsS "${headers[@]}" \
+            "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?name=${CUSTOM_DOMAIN}")
+          count=$(echo "$records" | jq '.result | length')
+
+          if [ "$count" -eq 0 ]; then
+            echo "Creating CNAME ${CUSTOM_DOMAIN} -> ${PROJECT_NAME}.pages.dev"
+            curl -fsS -X POST \
+              "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
+              "${headers[@]}" \
+              --data "{\"type\":\"CNAME\",\"name\":\"${CUSTOM_DOMAIN}\",\"content\":\"${PROJECT_NAME}.pages.dev\",\"proxied\":true,\"ttl\":1}" \
+              | tee /tmp/dns-create.json
+            jq -e '.success == true' /tmp/dns-create.json >/dev/null
+          else
+            echo "Existing DNS record(s) for ${CUSTOM_DOMAIN}:"
+            echo "$records" | jq '.result[] | {id,type,name,content,proxied}'
+            bad=$(echo "$records" | jq -r --arg target "${PROJECT_NAME}.pages.dev" '[.result[] | select(.type != "CNAME" or .content != $target)] | length')
+            if [ "$bad" -ne 0 ]; then
+              echo "Existing record is not the expected Pages CNAME; refusing to overwrite automatically."
+              exit 1
+            fi
+          fi
+
+      - name: Wait for custom domain to activate
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/domains"
+          for i in $(seq 1 18); do
+            response=$(curl -fsS \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "$api")
+            status=$(echo "$response" | jq -r --arg d "$CUSTOM_DOMAIN" '.result[]? | select(.name == $d) | .status')
+            echo "Attempt ${i}: ${CUSTOM_DOMAIN} status=${status:-unknown}"
+            if [ "$status" = "active" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Domain did not become active within 3 minutes. Final state:"
+          echo "$response" | jq --arg d "$CUSTOM_DOMAIN" '.result[]? | select(.name == $d)'
+          exit 1
