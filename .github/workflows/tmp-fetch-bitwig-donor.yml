@@ -1,0 +1,27 @@
+name: Temporary Bitwig Preset Fetch
+
+on:
+  push:
+    branches: [tmp-bitwig-preset-build]
+    paths:
+      - '.github/workflows/tmp-fetch-bitwig-donor.yml'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public Bitwig preset donors
+        run: |
+          mkdir -p out
+          curl -fL 'https://raw.githubusercontent.com/polarity/polarity-music-tools/master/Bitwig-6/HiChord.bwpreset' -o out/HiChord.bwpreset
+          curl -fL 'https://raw.githubusercontent.com/polarity/polarity-music-tools/master/Bitwig-5.3/Stepwise-Chords.bwpreset' -o out/Stepwise-Chords.bwpreset
+          curl -fL 'https://raw.githubusercontent.com/polarity/polarity-music-tools/master/Bitwig-5.2/Labyrinth-SEQ.bwpreset' -o out/Labyrinth-SEQ.bwpreset
+          curl -fL 'https://raw.githubusercontent.com/polarity/polarity-music-tools/master/Bitwig-6.1/Bassline-Generator-2026-03.bwpreset' -o out/Bassline-Generator.bwpreset
+          curl -fL 'https://raw.githubusercontent.com/jonvuri/ghostnote/main/tools/bwformat/bwparse.py' -o out/bwparse.py
+          sha256sum out/* > out/SHA256SUMS.txt
+          ls -lah out
+      - name: Upload donors
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitwig-donors
+          path: out/
